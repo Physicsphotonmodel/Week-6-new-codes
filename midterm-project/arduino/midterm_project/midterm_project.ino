@@ -119,21 +119,26 @@ void Search() {   //這裡只是大概寫一下之後還會再改
     int r3 = analogRead(R3) > 100;
 
     if(_cmd == MOVE_FORWARD){
-        //moveforward()
+        //call function Moveforward need to implement all variable of IRs
+        //or we can use "int" instead of "#define" to name the pins
+        //Moveforward(L3, L2, M, R2, R3);
     }
 
     if (l2 && r2) { // arrive at a node
         MotorWriting(0, 0);
-        send_msg('K'); 
+        send_msg('K');
+        
+        //call function TurnLeft, TurnRight, TurnBack need to implement variable of middle IR
+        //or we can change "#define M A5" to "int M A5" 
         
         if (_cmd == LEFT_TURN) {
-            // TurnLeft();
+            // TurnLeft(M);
         }
         else if (_cmd == RIGHT_TURN) {
-            // TurnRight();
+            // TurnRight(M);
         }
         else if (_cmd == BACKWARD) {
-            // TurnBack();
+            // TurnBack(M);
         }
 
         send_msg('L');  // if it leaves a node
