@@ -42,7 +42,9 @@ def main(mode: int, bt_port: str, team_name: str, server_url: str, maze_file: st
     #point = ScoreboardFake("your team name", "data/fakeUID.csv") # for local testing
     #bluetooth code uploaded in weekend
 
-    path_nodes = maze.strategy()
+    start_node = maze.get_start_point() 
+    path_nodes = maze.strategy(start_node)
+
     actions = maze.getActions(path_nodes)
     action_list = list(maze.actions_to_str(actions))
 
@@ -73,7 +75,7 @@ def main(mode: int, bt_port: str, team_name: str, server_url: str, maze_file: st
     if mode == 0:
         log.info("Mode 0: For treasure-hunting")
 
-        while True: #we should type this in the terminal: python main.py 0 COM3 "MyTeamName" "http://140.112.175.18" "data/maze.csv"
+        while True: #python midterm-project/python/main.py 0 --bt-port COM3 --team-name "Team7" --server-url "http://140.112.175.18" --maze-file "midterm-project/python/data/small_maze.csv"
 
             response = interface.listen()
 

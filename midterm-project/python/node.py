@@ -31,10 +31,19 @@ class Node:
         return
 
     def get_direction(self, node):
+
+        for items in self.successors: 
+            if items.node == node: 
+                return self.direction
+            
+        print(f"[Error] Node {node.index} is not adjacent to Node {self.index} ")
+        #raise ValueError(f"Invalid Successor: {node.index})
+        return 0
+
         # TODO : if node is adjacent to the present node, return the direction of node from the present node
         # For example, if the direction of node from the present node is EAST, then return Direction.EAST = 4
         # However, if node is not adjacent to the present node, print error message and return 0
-        return
+
 
     def is_successor(self, node):
         for succ in self.successors:
