@@ -28,11 +28,11 @@
 #define MotorR_I3 = 9;
 #define MotorR_I4 = 8;
 // 循線模組, 請按照自己車上的接線寫入腳位
-#define R3 A3 
-#define R2 A4 
-#define M A5 
-#define L2 A6 
-#define L3 A7 
+int R3 A3 
+int R2 A4 
+int M A5 
+int L2 A6 
+int L3 A7 
 // RFID, 請按照自己車上的接線寫入腳位
 #define RST_PIN 3                 // 讀卡機的重置腳位
 #define SS_PIN 2                  // 晶片選擇腳位
@@ -73,8 +73,8 @@ void setup() {
 /*=====Import header files=====*/
 #include "RFID.h"
 #include "bluetooth.h"
-#include "node.h"
 #include "track.h"
+#include "node.h"
 /*=====Import header files=====*/
 
 /*===========================initialize variables===========================*/
@@ -121,7 +121,7 @@ void Search() {   //這裡只是大概寫一下之後還會再改
     if(_cmd == MOVE_FORWARD){
         //call function Moveforward need to implement all variable of IRs
         //or we can use "int" instead of "#define" to name the pins
-        //Moveforward(L3, L2, M, R2, R3);
+        //Moveforward();
     }
 
     if (l2 && r2) { // arrive at a node
@@ -132,13 +132,13 @@ void Search() {   //這裡只是大概寫一下之後還會再改
         //or we can change "#define M A5" to "int M A5" 
         
         if (_cmd == LEFT_TURN) {
-            // TurnLeft(M);
+            // TurnLeft();
         }
         else if (_cmd == RIGHT_TURN) {
-            // TurnRight(M);
+            // TurnRight();
         }
         else if (_cmd == BACKWARD) {
-            // TurnBack(M);
+            // TurnBack();
         }
 
         send_msg('L');  // if it leaves a node
