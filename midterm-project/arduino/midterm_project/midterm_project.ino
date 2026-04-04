@@ -22,17 +22,17 @@
 // TB6612, 請按照自己車上的接線寫入腳位(左右不一定要跟註解寫的一樣)
 // TODO: 請將腳位寫入下方
 #define MotorL_PWM = 10;
-#define MotorR_PWM = 11;  
+#define MotorR_PWM = 11;
 #define MotorL_I1 = 7;
 #define MotorL_I2 = 6;
 #define MotorR_I3 = 9;
 #define MotorR_I4 = 8;
 // 循線模組, 請按照自己車上的接線寫入腳位
-int R3 A3 
-int R2 A4 
-int M A5 
-int L2 A6 
-int L3 A7 
+int R3 A3
+int R2 A4
+int M A5
+int L2 A6
+int L3 A7
 // RFID, 請按照自己車上的接線寫入腳位
 #define RST_PIN 3                 // 讀卡機的重置腳位
 #define SS_PIN 2                  // 晶片選擇腳位
@@ -45,7 +45,7 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);  // 建立MFRC522物件
 /*============setup============*/
 void setup() {
     // bluetooth initialization
-    Serial3.begin(9600);  
+    Serial3.begin(9600);
     // Serial window
     Serial.begin(9600);
     // RFID initial
@@ -103,7 +103,7 @@ void loop() {
 
 void SetState() {
     BT_CMD incoming_cmd = ask_BT();
-    if (incoming_cmd == NOTHING) return; 
+    if (incoming_cmd == NOTHING) return;
 
     if (incoming_cmd == START) {state = true;}
     else if (incoming_cmd == HALT) {state = false;}
@@ -112,43 +112,62 @@ void SetState() {
 
 void Search() {   //這裡只是大概寫一下之後還會再改
 
-    int l3 = analogRead(L3) > 100;
-    int l2 = analogRead(L2) > 100;
-    int m = analogRead(M) > 100;
-    int r2 = analogRead(R2) > 100;
-    int r3 = analogRead(R3) > 100;
+    // int l3 = analogRead(L3) > 100;
+    // int l2 = analogRead(L2) > 100;
+    // int m = analogRead(M) > 100;
+    // int r2 = analogRead(R2) > 100;
+    // int r3 = analogRead(R3) > 100;
 
     if(_cmd == MOVE_FORWARD){
         //call function Moveforward need to implement all variable of IRs
         //or we can use "int" instead of "#define" to name the pins
-        //Moveforward();
+        Moveforward();
     }
 
-    if (l2 && r2) { // arrive at a node
-        MotorWriting(0, 0);
-        send_msg('K');
-        
-        //call function TurnLeft, TurnRight, TurnBack need to implement variable of middle IR
-        //or we can change "#define M A5" to "int M A5" 
-        
-        if (_cmd == LEFT_TURN) {
-            // TurnLeft();
-        }
-        else if (_cmd == RIGHT_TURN) {
-            // TurnRight();
-        }
-        else if (_cmd == BACKWARD) {
-            // TurnBack();
-        }
-
-        send_msg('L');  // if it leaves a node
-        _cmd = NOTHING; // clear the command
-
+    else if(_cmd == LEFT_TURN){
+        Moveforward();
+        TurnLeft();
     }
 
-    else {
-    // Tracking(l3, l2, m, r2, r3); 
+    else if(_cmd == RIGHT_TURN){
+        Moveforward();
+        TurnRight();
     }
+
+    else if(_cmd == BACKWARD){
+        Moveforward();
+        TurnBack();
+    }
+
+    else{
+        stop(); //maybe add some default action
+    }
+
+    // if (l2 && r2) { // arrive at a node
+    //     MotorWriting(0, 0);
+    //     send_msg('K');
+
+    //     //call function TurnLeft, TurnRight, TurnBack need to implement variable of middle IR
+    //     //or we can change "#define M A5" to "int M A5"
+
+    //     if (_cmd == LEFT_TURN) {
+    //         // TurnLeft();
+    //     }
+    //     else if (_cmd == RIGHT_TURN) {
+    //         // TurnRight();
+    //     }
+    //     else if (_cmd == BACKWARD) {
+    //         // TurnBack();
+    //     }
+
+    //     send_msg('L');  // if it leaves a node
+    //     _cmd = NOTHING; // clear the command
+
+    // }
+
+    // else {
+    // // Tracking(l3, l2, m, r2, r3);
+    // }
 }
 
 

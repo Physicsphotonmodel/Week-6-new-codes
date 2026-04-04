@@ -26,23 +26,23 @@ BT_CMD ask_BT() {   //link interface.send() to Serial3.read()
     if (Serial3.available()) {  //transform messages and return it
 
         cmd = Serial3.read();
-        switch(cmd){ 
-            case 's': 
+        switch(cmd){
+            case 's':
                 message = START;
                 break;
             case 'h':
                 message = HALT;
                 break;
-            case 'l': 
+            case 'l':
                 message = LEFT_TURN;
                 break;
-            case 'f': 
+            case 'f':
                 message = MOVE_FORWARD;
                 break;
-            case 'r': 
+            case 'r':
                 message = RIGHT_TURN;
                 break;
-            case 'b': 
+            case 'b':
                 message = BACKWARD;
                 break;
             default:
@@ -54,7 +54,7 @@ BT_CMD ask_BT() {   //link interface.send() to Serial3.read()
         Serial.println(cmd);
     #endif
     }
-    
+
     return message;
 }
 
@@ -68,15 +68,15 @@ void send_msg(const char& msg) {
     #ifdef DEBUG   //print on the screen as well
         Serial.print("Sent msg to BT: ");
         Serial.println(msg);
-    #endif   
-}  
+    #endif
+}
 
 // send UID back through Serial3(bluetooth serial)
 void send_byte(byte* id, byte& idSize) {
     for (byte i = 0; i < idSize; i++) {  // Send UID consequently.
         Serial3.print(id[i]);
     }
-    
+
 #ifdef DEBUG
     Serial.print("Sent id: ");
     for (byte i = 0; i < idSize; i++) {  // Show UID consequently.
