@@ -1,9 +1,9 @@
 /***************************************************************************/
 // File       [RFID.h]
-// Author     [Erik Kuo]
+// Author     [Lumos, Hsinchi]
 // Synopsis   [Code for getting UID from RFID card]
 // Functions  [rfid]
-// Modify     [2020/03/27 Erik Kuo]
+// Modify     [2026/04/05 Lumos]
 /***************************************************************************/
 
 /*===========================don't change anything in this file===========================*/

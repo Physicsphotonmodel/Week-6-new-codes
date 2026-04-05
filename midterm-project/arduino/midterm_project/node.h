@@ -1,70 +1,99 @@
 /***************************************************************************/
-// File			  [node.h]
-// Author		  [Erik Kuo, Joshua Lin]
-// Synopsis		[Code for managing car movement when encounter a node]
-// Functions  [/* add on your own! */]
-// Modify		  [2020/03/027 Erik Kuo]
+// File       [node.h]
+// Author     [Lumos, Hsinchi]
+// Synopsis   [Code for managing car movement when encountering a node]
+// Functions  [Stop, TurnRight, TurnLeft, TurnBack, Moveforward]
+// Modify     [2026/04/05 Lumos]
 /***************************************************************************/
 
-/*===========================import variable===========================*/
-int extern Tp; //use Tp directly, don't need to implement it, it is defined in midterm_project.ino
-int extern R3;
-int extern R2;
-int extern M;
-int extern L2;
-int extern L3;
-/*===========================import variable===========================*/
+int extern Tp; // Defined in midterm_project.ino
 
-// TODO: add some function to control your car when encounter a node
-// here are something you can try: left_turn, right_turn... etc.
+/*
+ * Halts both motors immediately.
+ */
 void Stop() {
     MotorWriting(0, 0);
 }
 
+/*
+ * Executes a 90-degree right turn at an intersection.
+ */
 void TurnRight() {
-    // pin : the middle IR --*--
-    int m;
+    int l3, l2, m, r2, r3;
     do {
-        MotorWriting(200, 200);
-        m = (analogRead(M) > 100);
-    } while(m == 1);
-
+        MotorWriting(MAX_POWER, MAX_POWER);
+        l3 = analogRead(L3) > 100;
+        l2 = analogRead(L2) > 100;
+        m = analogRead(M) > 100;
+        r2 = analogRead(R2) > 100;
+        r3 = analogRead(R3) > 100;
+    } while(l3 * l2 * m * r2 * r3 == 1);
+    
+    MotorWriting(MAX_POWER, -MAX_POWER);
+    delay(380);
+    
     do {
-        MotorWriting(150, -150);
-        m = (analogRead(M) > 100);
-    } while(m == 0);
-
-    Stop();
+        MotorWriting(MAX_POWER, -MAX_POWER);
+        l3 = analogRead(L3) > 100;
+        l2 = analogRead(L2) > 100;
+        m = analogRead(M) > 100;
+        r2 = analogRead(R2) > 100;
+        r3 = analogRead(R3) > 100;
+    } while(!((l3==0) && (l2==0) && (m==1) && (r2==0) && (r3==0)));
 }
 
+/*
+ * Executes a 90-degree left turn at an intersection.
+ */
 void TurnLeft() {
-    // pin : the middle IR --*--
-    int m;
+    int l3, l2, m, r2, r3;
     do {
-        MotorWriting(200, 200);
-        m = (analogRead(M) > 100);
-    } while(m == 1);
-
+        MotorWriting(MAX_POWER, MAX_POWER);
+        l3 = analogRead(L3) > 100;
+        l2 = analogRead(L2) > 100;
+        m = analogRead(M) > 100;
+        r2 = analogRead(R2) > 100;
+        r3 = analogRead(R3) > 100;
+    } while(l3 * l2 * m * r2 * r3 == 1);
+    
+    MotorWriting(-MAX_POWER, MAX_POWER);
+    delay(380);
+    
     do {
-        MotorWriting(-150, 150);
-        m = (analogRead(M) > 100);
-    } while(m == 0);
-
-    Stop();
+        MotorWriting(-MAX_POWER, MAX_POWER);
+        l3 = analogRead(L3) > 100;
+        l2 = analogRead(L2) > 100;
+        m = analogRead(M) > 100;
+        r2 = analogRead(R2) > 100;
+        r3 = analogRead(R3) > 100;
+    } while(!((l3==0) && (l2==0) && (m==1) && (r2==0) && (r3==0)));
 }
 
+/*
+ * Executes a 180-degree U-turn.
+ */
 void TurnBack() {
-    // pin : the middle IR --*--
-    MotorWriting(-150, 150);
-    delay(600);
-    int m = (analogRead(M) > 100);
-    while(m == 0) {
-        MotorWriting(-150, 150);
-        m = (analogRead(M) > 100);
+    MotorWriting(-MAX_POWER, MAX_POWER);
+    delay(900);
+    int l3 = analogRead(L3) > 100;
+    int l2 = analogRead(L2) > 100;
+    int m  = analogRead(M) > 100;
+    int r2 = analogRead(R2) > 100;
+    int r3 = analogRead(R3) > 100;
+    
+    while(!((l3==0) && (l2==0) && (m==1) && (r2==0) && (r3==0))) {
+        MotorWriting(-MAX_POWER, MAX_POWER);
+        l3 = analogRead(L3) > 100;
+        l2 = analogRead(L2) > 100;
+        m  = analogRead(M) > 100;
+        r2 = analogRead(R2) > 100;
+        r3 = analogRead(R3) > 100;
     }
-    Stop();
 }
 
+/*
+ * Moves forward slightly to bypass the current node intersection.
+ */
 void Moveforward() {
     int l3 = (analogRead(L3) > 100) ? 1 : 0;
     int l2 = (analogRead(L2) > 100) ? 1 : 0;
@@ -72,15 +101,12 @@ void Moveforward() {
     int r2 = (analogRead(R2) > 100) ? 1 : 0;
     int r3 = (analogRead(R3) > 100) ? 1 : 0;
 
-    while (!(l3 == 1 && l2 == 1 && m == 1 && r2 == 1 && r3 == 1)) {
-        Tracking_P(l3, l2, m, r2, r3);
+    while (l3 == 1 && l2 == 1 && m == 1 && r2 == 1 && r3 == 1) {
+        MotorWriting(MAX_POWER, MAX_POWER);
         l3 = (analogRead(L3) > 100) ? 1 : 0;
         l2 = (analogRead(L2) > 100) ? 1 : 0;
         m  = (analogRead(M)  > 100) ? 1 : 0;
         r2 = (analogRead(R2) > 100) ? 1 : 0;
         r3 = (analogRead(R3) > 100) ? 1 : 0;
     }
-
-    Stop();
-    delay(100);
 }

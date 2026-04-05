@@ -1,16 +1,12 @@
 /***************************************************************************/
-// File			  [bluetooth.h]
-// Author		  [Erik Kuo]
-// Synopsis		[Code for bluetooth communication]
+// File       [bluetooth.h]
+// Author     [Lumos, Hsinchi]
+// Synopsis   [Code for bluetooth communication]
 // Functions  [ask_BT, send_msg, send_byte]
-// Modify		  [2020/03/27 Erik Kuo]
+// Modify     [2026/04/05 Lumos]
 /***************************************************************************/
 
-/*if you have no idea how to start*/
-/*check out what you have learned from week 2*/
-
-
-enum BT_CMD{   // add movements
+enum BT_CMD {
     NOTHING,
     START,
     HALT,
@@ -20,68 +16,58 @@ enum BT_CMD{   // add movements
     BACKWARD
 };
 
-BT_CMD ask_BT() {   //link interface.send() to Serial3.read()
+/*
+ * Polls the Serial3 interface for incoming Bluetooth bytes
+ * and maps them to the corresponding BT_CMD enum.
+ */
+BT_CMD ask_BT() {
     BT_CMD message = NOTHING;
     char cmd;
-    if (Serial3.available()) {  //transform messages and return it
-
+    if (Serial3.available()) {
         cmd = Serial3.read();
-        switch(cmd){
-            case 's':
-                message = START;
-                break;
-            case 'h':
-                message = HALT;
-                break;
-            case 'l':
-                message = LEFT_TURN;
-                break;
-            case 'f':
-                message = MOVE_FORWARD;
-                break;
-            case 'r':
-                message = RIGHT_TURN;
-                break;
-            case 'b':
-                message = BACKWARD;
-                break;
-            default:
-                message = NOTHING;
+        switch(cmd) {
+            case 's': message = START; break;
+            case 'h': message = HALT; break;
+            case 'l': message = LEFT_TURN; break;
+            case 'f': message = MOVE_FORWARD; break;
+            case 'r': message = RIGHT_TURN; break;
+            case 'b': message = BACKWARD; break;
+            default:  message = NOTHING;
         }
 
-    #ifdef DEBUG
+#ifdef DEBUG
         Serial.print("cmd : ");
         Serial.println(cmd);
-    #endif
+#endif
     }
-
     return message;
 }
 
-// send msg back through Serial1(bluetooth serial)
-// can use send_byte alternatively to send msg back
-// (but need to convert to byte type)
+/*
+ * Transmits a single character message over Bluetooth.
+ */
 void send_msg(const char& msg) {
-
     Serial3.print(msg);
 
-    #ifdef DEBUG   //print on the screen as well
-        Serial.print("Sent msg to BT: ");
-        Serial.println(msg);
-    #endif
+#ifdef DEBUG
+    Serial.print("Sent msg to BT: ");
+    Serial.println(msg);
+#endif
 }
 
-// send UID back through Serial3(bluetooth serial)
+/*
+ * Transmits an array of bytes (e.g., RFID UID) over Bluetooth.
+ */
 void send_byte(byte* id, byte& idSize) {
-    for (byte i = 0; i < idSize; i++) {  // Send UID consequently.
+    for (byte i = 0; i < idSize; i++) {
         Serial3.print(id[i]);
     }
 
 #ifdef DEBUG
     Serial.print("Sent id: ");
-    for (byte i = 0; i < idSize; i++) {  // Show UID consequently.
+    for (byte i = 0; i < idSize; i++) {
         Serial.print(id[i], HEX);
     }
     Serial.println();
 #endif
-}  // send_byte
+}

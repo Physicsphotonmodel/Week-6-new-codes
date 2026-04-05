@@ -1,174 +1,184 @@
 /***************************************************************************/
-// File       [final_project.ino]
-// Author     [Erik Kuo]
+// File       [midterm_project.ino]
+// Author     [Lumos, Hsinchi]
 // Synopsis   [Code for managing main process]
-// Functions  [setup, loop, Search_Mode, Hault_Mode, SetState]
-// Modify     [2020/03/27 Erik Kuo]
+// Functions  [setup, loop, Search, SetState]
+// Modify     [2026/04/05 Lumos]
 /***************************************************************************/
 
-#define DEBUG  // debug flag
+#define DEBUG 0 // Debug flag
 
-// for RFID
 #include <MFRC522.h>
 #include <SPI.h>
 
-/*===========================define pin & create module object================================*/
-// BlueTooth
-// BT connect to Serial1 (Hardware Serial)
-// Mega               HC05
-// Pin  (Function)    Pin
-// 18    TX       ->  RX
-// 19    RX       <-  TX
-// TB6612, 請按照自己車上的接線寫入腳位(左右不一定要跟註解寫的一樣)
-// TODO: 請將腳位寫入下方
-#define MotorL_PWM = 10;
-#define MotorR_PWM = 11;
-#define MotorL_I1 = 7;
-#define MotorL_I2 = 6;
-#define MotorR_I3 = 9;
-#define MotorR_I4 = 8;
-// 循線模組, 請按照自己車上的接線寫入腳位
-int R3 A3
-int R2 A4
-int M A5
-int L2 A6
-int L3 A7
-// RFID, 請按照自己車上的接線寫入腳位
-#define RST_PIN 3                 // 讀卡機的重置腳位
-#define SS_PIN 2                  // 晶片選擇腳位
-MFRC522 mfrc522(SS_PIN, RST_PIN);  // 建立MFRC522物件
-// BT
-#define CUSTOM_NAME "HM10_7" // Max length is 12 characters [1]
+/*=========================== Define Pin & Modules ===========================*/
+// TB6612 Motor Driver Pins
+#define MotorL_PWM 10
+#define MotorR_PWM 11
+#define MotorL_I1 7
+#define MotorL_I2 6
+#define MotorR_I3 9
+#define MotorR_I4 8
 
-/*===========================define pin & create module object===========================*/
+// IR Tracking Sensor Pins
+#define R3 A3
+#define R2 A4
+#define M  A5
+#define L2 A6
+#define L3 A7
 
-/*============setup============*/
+// MFRC522 RFID Pins
+#define RST_PIN 3                 
+#define SS_PIN 2                  
+MFRC522 mfrc522(SS_PIN, RST_PIN); 
+
+// Bluetooth Configuration
+#define CUSTOM_NAME "HM10_7" 
+#define MAX_POWER 255
+/*=========================== Define Pin & Modules ===========================*/
+
 void setup() {
-    // bluetooth initialization
-    Serial3.begin(9600);
-    // Serial window
-    Serial.begin(9600);
-    // RFID initial
+    // Serial communication initialization
+    Serial3.begin(9600); // HM-10 Bluetooth
+    Serial.begin(9600);  // PC Serial Monitor
+
+    // RFID initialization
     SPI.begin();
     mfrc522.PCD_Init();
-    // TB6612 pin
+
+    // Motor pin initialization
     pinMode(MotorR_I3, OUTPUT);
     pinMode(MotorR_I4, OUTPUT);
     pinMode(MotorL_I1, OUTPUT);
     pinMode(MotorL_I2, OUTPUT);
     pinMode(MotorL_PWM, OUTPUT);
     pinMode(MotorR_PWM, OUTPUT);
-    // tracking pin
+
+    // IR sensor pin initialization
     pinMode(R3, INPUT);
     pinMode(R2, INPUT);
     pinMode(M, INPUT);
     pinMode(L2, INPUT);
     pinMode(L3, INPUT);
+
 #ifdef DEBUG
     Serial.println("Start!");
 #endif
 }
-/*============setup============*/
 
-/*=====Import header files=====*/
+/*===== Import header files =====*/
 #include "RFID.h"
 #include "bluetooth.h"
 #include "track.h"
 #include "node.h"
-/*=====Import header files=====*/
+/*===== Import header files =====*/
 
-/*===========================initialize variables===========================*/
-int l3 = 0, l2 = 0, m = 0, r2 = 0, r3 = 0;  // 紅外線模組的讀值(0->white,1->black)
-int Tp = 200;                                // set your own value for motor power
-bool state = false;     // set state to false to halt the car, set state to true to activate the car
-BT_CMD _cmd = NOTHING;  // enum for bluetooth message, reference in bluetooth.h line 2
-/*===========================initialize variables===========================*/
+/*=========================== Initialize Variables ===========================*/
+// IR sensor readings (0 -> white, 1 -> black)
+int l3 = 0, l2 = 0, m = 0, r2 = 0, r3 = 0;
+int Tp = 255; // Base motor power
+bool state = false; // true = active, false = halt
+BT_CMD _cmd = NOTHING; 
+/*=========================== Initialize Variables ===========================*/
 
-/*===========================declare function prototypes===========================*/
-void Search();    // search graph
-void SetState();  // switch the state
-/*===========================declare function prototypes===========================*/
-
-/*===========================define function===========================*/
-
-char data[100];
+/*=========================== Function Prototypes ===========================*/
+void Search();    // Graph searching and routing logic
+void SetState();  // State machine updater
+/*=========================== Function Prototypes ===========================*/
 
 void loop() {
-    if (!state)
+    static unsigned long last_ping = 0;
+
+    if (!state) {
         MotorWriting(0, 0);
-    else
+        // Send "READY" to Bluetooth every 1 second to indicate alive status
+        if (millis() - last_ping > 1000) {
+            Serial3.println("READY");
+            last_ping = millis();
+        }
+    } else {
+        // Start searching once 's' is received
         Search();
+    }
     SetState();
 }
 
+/*
+ * Updates the system state based on incoming Bluetooth commands.
+ */
 void SetState() {
     BT_CMD incoming_cmd = ask_BT();
     if (incoming_cmd == NOTHING) return;
 
-    if (incoming_cmd == START) {state = true;}
-    else if (incoming_cmd == HALT) {state = false;}
-    else {_cmd = incoming_cmd;}
+    if (incoming_cmd == START) {
+        state = true;
+    } else if (incoming_cmd == HALT) {
+        state = false;
+    } else {
+        _cmd = incoming_cmd;
+    }
 }
 
-void Search() {   //這裡只是大概寫一下之後還會再改
-
-    // int l3 = analogRead(L3) > 100;
-    // int l2 = analogRead(L2) > 100;
-    // int m = analogRead(M) > 100;
-    // int r2 = analogRead(R2) > 100;
-    // int r3 = analogRead(R3) > 100;
-
-    if(_cmd == MOVE_FORWARD){
-        //call function Moveforward need to implement all variable of IRs
-        //or we can use "int" instead of "#define" to name the pins
-        Moveforward();
+/*
+ * Main logic for reading RFID, detecting nodes, requesting commands,
+ * executing actions, and performing line tracking.
+ */
+void Search() {
+    byte idSize;
+    byte* id = rfid(idSize);
+    
+    if (id != 0) {
+        String uidStr = "ID";
+        for (byte i = 0; i < idSize; i++) {
+            if (id[i] < 0x10) uidStr += "0";
+            uidStr += String(id[i], HEX);
+        }
+        uidStr.toUpperCase();
+        // Transmit UID to Python (e.g., "ID10BA617E")
+        Serial3.println(uidStr); 
     }
 
-    else if(_cmd == LEFT_TURN){
-        Moveforward();
-        TurnLeft();
+    l3 = analogRead(L3) > 100;
+    l2 = analogRead(L2) > 100;
+    m  = analogRead(M) > 100;
+    r2 = analogRead(R2) > 100;
+    r3 = analogRead(R3) > 100;
+
+    if (l3 && r3) { 
+        MotorWriting(0, 0); // Brake immediately at node
+        Serial3.println("K"); // Report node arrival to Python
+        
+        // Wait in loop until the next movement command is received
+        while(_cmd == NOTHING) {
+            SetState();
+        }
+
+        // Execute the corresponding action based on the received command
+        if (_cmd == LEFT_TURN) {
+            TurnLeft();
+            Serial3.println("L");
+        }
+        else if (_cmd == RIGHT_TURN) {
+            TurnRight();
+            Serial3.println("R");
+        }
+        else if (_cmd == BACKWARD) {
+            TurnBack();
+            Serial3.println("B");
+        }
+        else if (_cmd == MOVE_FORWARD) {
+            Moveforward();
+            Serial3.println("F");
+        }
+        else if (_cmd == HALT) {
+            Stop();
+            Serial3.println("S");
+            state = false; // Halt main process
+        }
+
+        _cmd = NOTHING; // Clear command queue for the next node
+    } else {
+        // Continue line tracking if not at a node
+        Tracking_P(l3, l2, m, r2, r3);
     }
-
-    else if(_cmd == RIGHT_TURN){
-        Moveforward();
-        TurnRight();
-    }
-
-    else if(_cmd == BACKWARD){
-        Moveforward();
-        TurnBack();
-    }
-
-    else{
-        stop(); //maybe add some default action
-    }
-
-    // if (l2 && r2) { // arrive at a node
-    //     MotorWriting(0, 0);
-    //     send_msg('K');
-
-    //     //call function TurnLeft, TurnRight, TurnBack need to implement variable of middle IR
-    //     //or we can change "#define M A5" to "int M A5"
-
-    //     if (_cmd == LEFT_TURN) {
-    //         // TurnLeft();
-    //     }
-    //     else if (_cmd == RIGHT_TURN) {
-    //         // TurnRight();
-    //     }
-    //     else if (_cmd == BACKWARD) {
-    //         // TurnBack();
-    //     }
-
-    //     send_msg('L');  // if it leaves a node
-    //     _cmd = NOTHING; // clear the command
-
-    // }
-
-    // else {
-    // // Tracking(l3, l2, m, r2, r3);
-    // }
 }
-
-
-/*===========================define function===========================*/

@@ -1,17 +1,18 @@
+"""
+Module: maze.py
+Description: Handles graph representation, node management, and routing algorithms 
+             (BFS and Pacman strategy) for the vehicle's navigation.
+"""
+
 import csv
 import logging
-import math
 from enum import IntEnum
 from typing import List
 from collections import deque
-
-import numpy as np
 import pandas
-
 from node import Direction, Node
 
 log = logging.getLogger(__name__)
-
 
 class Action(IntEnum):
     ADVANCE = 1
@@ -20,23 +21,20 @@ class Action(IntEnum):
     TURN_LEFT = 4
     HALT = 5
 
-
 class Maze:
+    """Represents the maze environment and provides pathfinding algorithms."""
+    
     def __init__(self, filepath: str):
-        # TODO : read file and implement a data structure you like
-        # For example, when parsing raw_data, you may create several Node objects.
-        # Then you can store these objects into self.nodes.
-        # Finally, add to nd_dict by {key(index): value(corresponding node)}
         self.raw_data = pandas.read_csv(filepath)
-        self.nodes = []
-        self.node_dict = dict()  # key: index, value: the correspond node
+        self.node_dict = dict() 
+        
+        # Initialize Node objects
         for _, row in self.raw_data.iterrows():
             idx = int(row['index'])
-            # 建立 Node 物件 (假設 Node 接收 index 作為參數)
             new_node = Node(idx)
             self.node_dict[idx] = new_node
 
-        # 建立節點間的鄰居關係 (Successors)
+        # Establish successor relationships based on CSV data
         for _, row in self.raw_data.iterrows():
             idx = int(row['index'])
             current_node = self.node_dict[idx]
@@ -53,36 +51,37 @@ class Maze:
                 if pandas.notna(target):
                     target_idx = int(target)
                     dist = row[dist_col] if pandas.notna(row[dist_col]) else 1
-
                     current_node.set_successor(self.node_dict[target_idx], d, dist)
 
-    def get_start_point(self):
+    def get_start_point(self) -> Node:
+        """Retrieves the starting node (Node 1 by default)."""
         if len(self.node_dict) < 2:
-            log.error("Error: the start point is not included.")
-            return 0
+            log.error("Error: Start point not found.")
+            return None
         return self.node_dict[1]
 
-    def get_node_dict(self):
+    def get_node_dict(self) -> dict:
         return self.node_dict
 
-    def is_deadend(self, node: Node):
+    def is_deadend(self, node: Node) -> bool:
+        """Checks if a node is a dead end (1 or fewer connections)."""
         return len(node.get_successors()) <= 1
 
-    def BFS(self, node: Node):
-        # TODO : design your data structure here for your algorithm
-        # Tips : return a sequence of nodes from the node to the nearest unexplored deadend
+    def BFS(self, node: Node) -> List[Node]:
+        """Finds the shortest path from a node to the nearest unexplored deadend."""
         queue = deque([node])
         parent = {node.index: None}
         visited = {node.index}
 
         while queue:
             current_node = queue.popleft()
-            if len(current_node.successor) <= 1 and current_node.index != node.index:
+            
+            if len(current_node.successors) <= 1 and current_node.index != node.index:
                 path = []
                 temp = current_node
                 while temp is not None:
                     path.append(temp)
-                    p_idx = parent[temp.idx]
+                    p_idx = parent[temp.index]
                     temp = self.node_dict.get(p_idx) if p_idx is not None else None
                 return path[::-1]
 
@@ -91,12 +90,10 @@ class Maze:
                     visited.add(succ_node.index)
                     parent[succ_node.index] = current_node.index
                     queue.append(succ_node)
-
         return None
 
-    def BFS_2(self, node_from: Node, node_to: Node):
-        # TODO : similar to BFS but with fixed start point and end point
-        # Tips : return a sequence of nodes of the shortest path
+    def BFS_2(self, node_from: Node, node_to: Node) -> List[Node]:
+        """Finds the shortest path between a specific start and target node."""
         queue = deque([node_from])
         parent = {node_from.index: None}
 
@@ -110,6 +107,7 @@ class Maze:
                     p_idx = parent[temp.index]
                     temp = self.node_dict[p_idx] if p_idx is not None else None
                 return path[::-1]
+                
             for succ_node, _, _ in current_node.get_successors():
                 if succ_node.index not in parent:
                     parent[succ_node.index] = current_node.index
@@ -118,16 +116,12 @@ class Maze:
         log.error(f"Path not found from {node_from.index} to {node_to.index}")
         return None
 
-    def getAction(self, car_dir, node_from: Node, node_to: Node):
-        # TODO : get the car action
-        # Tips : return an action and the next direction of the car if the node_to is the Successor of node_to
-        # If not, print error message and return 0
+    def getAction(self, car_dir: Direction, node_from: Node, node_to: Node):
+        """Determines the required physical action based on relative directions."""
         target_dir = node_from.get_direction(node_to)
         if target_dir == 0:
             return None, car_dir
 
-        # (the direction the car head to, the target's absolute direction)
-        # N=1, S=2, W=3, E=4
         lookup = {
             (Direction.NORTH, Direction.NORTH): Action.ADVANCE,
             (Direction.NORTH, Direction.SOUTH): Action.U_TURN,
@@ -153,13 +147,13 @@ class Maze:
         action = lookup.get((car_dir, target_dir))
         return action, target_dir
 
-    def getActions(self, nodes: List[Node]):
-        # TODO : given a sequence of nodes, return the corresponding action sequence
-        # Tips : iterate through the nodes and use getAction() in each iteration
-        if not nodes or len(nodes) < 2: return []
+    def getActions(self, nodes: List[Node]) -> List[Action]:
+        """Translates a sequence of nodes into an action list."""
+        if not nodes or len(nodes) < 2: 
+            return []
 
         actions = []
-        current_car_dir = Direction.NORTH
+        current_car_dir = Direction.NORTH 
 
         for i in range(len(nodes) - 1):
             act, next_dir = self.getAction(current_car_dir, nodes[i], nodes[i+1])
@@ -168,52 +162,113 @@ class Maze:
 
         return actions
 
-    def actions_to_str(self, actions):
-        # cmds should be a string sequence like "fbrl....", use it as the input of BFS checklist #1
-        cmd = "fbrls"
-        cmds = ""
-        for action in actions:
-            cmds += cmd[action - 1]
-        log.info(cmds)
+    def actions_to_str(self, actions: List[Action]) -> str:
+        """Converts action enums to the command string recognized by the vehicle."""
+        cmd = "fbrlh"
+        cmds = "".join([cmd[action - 1] for action in actions])
+        log.info(f"Generated Command String: {cmds}")
         return cmds
 
-    def strategy(self, node: Node):
-        return self.BFS(node)
+    def get_all_node_scores(self, start_node: Node) -> dict:
+        """Calculates value score for all nodes based on distance from origin."""
+        scores = {}
+        queue = deque([(start_node, 0)])
+        visited = {start_node.index}
+        
+        while queue:
+            curr, dist = queue.popleft()
+            scores[curr.index] = dist * 10 
+            
+            for succ_node, _, _ in curr.get_successors():
+                if succ_node.index not in visited:
+                    visited.add(succ_node.index)
+                    queue.append((succ_node, dist + 1))
+                    
+        log.info(f"Node scores successfully mapped: {scores}")
+        return scores
 
-    def strategy_2(self, node_from: Node, node_to: Node):
-        return self.BFS_2(node_from, node_to)
+    def _estimate_time_cost(self, path: List[Node], current_car_dir: Direction) -> float:
+        """Estimates the physical execution time for a designated path."""
+        if not path or len(path) < 2: return 0.0
+        
+        TIME_TRAVEL_AND_STOP = 1.92  
+        TIME_TURN = 0.57             
+        TIME_U_TURN = 1.14           
 
-# test code for BFS
-# if __name__ == "__main__":
-#     # 1. 實例化迷宮，請確保路徑正確
-#     # 如果你的 CSV 在 data 資料夾下，請寫 "data/maze.csv"
-#     maze = Maze("data/maze.csv")
+        total_time = 0.0
+        car_dir = current_car_dir
+        
+        for i in range(len(path) - 1):
+            act, next_dir = self.getAction(car_dir, path[i], path[i+1])
+            if act in [Action.TURN_LEFT, Action.TURN_RIGHT]:
+                total_time += TIME_TURN
+            elif act == Action.U_TURN:
+                total_time += TIME_U_TURN
+            total_time += TIME_TRAVEL_AND_STOP
+            car_dir = next_dir
+            
+        return total_time
 
-#     # 2. 設定測試的起點與終點 (根據你的 CSV index)
-#     # 假設我們要從節點 1 走到節點 12
-#     # start_node = maze.node_dict[3]
-#     # end_node = maze.node_dict[10]
+    def strategy_pacman(self, start_node: Node, initial_car_dir: Direction, time_limit: float = 70.0) -> List[Node]:
+        """Greedy algorithm maximizing score accumulation within a rigid time limit."""
+        log.info("--- Initiating Time-Bound Strategy ---")
+        
+        node_scores = self.get_all_node_scores(start_node)
+        unvisited = set(node_scores.keys())
+        unvisited.discard(start_node.index) 
+        
+        current_node = start_node
+        current_dir = initial_car_dir
+        time_spent = 0.0
+        total_expected_score = 0
+        master_path = [current_node]
 
-#     start_node = maze.node_dict[int(input("start point: "))]
-#     end_node = maze.node_dict[int(input("end point: "))]
+        while unvisited and time_spent < time_limit:
+            best_target_idx = None
+            best_path = []
+            best_cp = -1.0
+            best_time_cost = 0.0
+            best_path_score = 0
+            best_final_dir = current_dir
 
-#     print(f"                          ")
-#     print(f"--- 開始測試 BFS 演算法 ---")
-#     print(f"                          ")
-#     path = maze.BFS_2(start_node, end_node)
+            for target_idx in list(unvisited):
+                target_node = self.node_dict.get(target_idx)
+                temp_path = self.BFS_2(current_node, target_node)
+                if not temp_path: continue
 
-#     if path:
-#         # 印出路徑節點編號
-#         path_indices = [node.index for node in path]
-#         print(f"最短路徑節點序列: {path_indices}")
+                est_time = self._estimate_time_cost(temp_path, current_dir)
+                if time_spent + est_time > time_limit:
+                    continue 
 
-#         # 3. 測試動作轉換
-#         actions = maze.getActions(path)
-#         cmd_str = maze.actions_to_str(actions)
-#         # print(f"對應動作序列: {actions}")
-#         print(f"發送給 Arduino 的指令字串: {cmd_str}")
+                path_score = sum(node_scores[n.index] for n in temp_path[1:] if n.index in unvisited)
+                cp_value = path_score / est_time if est_time > 0 else 0
 
-#         # 預期結果檢查：
-#         # 如果路徑是 [1, 2, 3]，動作應該包含前進或轉彎
-#     else:
-#         print("錯誤：找不到路徑！請檢查 CSV 連接關係。")
+                if cp_value > best_cp:
+                    best_cp = cp_value
+                    best_target_idx = target_idx
+                    best_path = temp_path
+                    best_time_cost = est_time
+                    best_path_score = path_score
+                    
+                    temp_dir = current_dir
+                    for i in range(len(temp_path)-1):
+                        _, temp_dir = self.getAction(temp_dir, temp_path[i], temp_path[i+1])
+                    best_final_dir = temp_dir
+
+            if best_target_idx is None:
+                log.info(f"Time remaining: {time_limit - time_spent:.1f}s. End of reachable targets.")
+                break
+
+            total_expected_score += best_path_score
+            time_spent += best_time_cost
+            current_node = self.node_dict[best_target_idx]
+            current_dir = best_final_dir
+            
+            for n in best_path[1:]:
+                unvisited.discard(n.index)
+                
+            master_path.extend(best_path[1:])
+            log.info(f"Targeting Node {best_target_idx} | Expected Gain: {best_path_score} | Time Cost: {best_time_cost:.1f}s")
+
+        log.info(f"--- Planning Complete! Est. Score: {total_expected_score} | Est. Time: {time_spent:.1f}s ---")
+        return master_path

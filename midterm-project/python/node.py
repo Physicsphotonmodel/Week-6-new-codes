@@ -1,51 +1,44 @@
+"""
+Module: node.py
+Description: Defines absolute geographical directions and the structural Node 
+             class used to construct the maze graph.
+"""
+
 from enum import IntEnum
 
-
-# You can get the enumeration based on integer value, or make comparison
-# ex: d = Direction(1), then d would be Direction.NORTH
-# ex: print(Direction.SOUTH == 1) should return False
 class Direction(IntEnum):
     NORTH = 1
     SOUTH = 2
     WEST = 3
     EAST = 4
 
-
-# Construct class Node and its member functions
-# You may add more member functions to meet your needs
 class Node:
+    """Represents a discrete intersection in the maze."""
     def __init__(self, index: int = 0):
         self.index = index
-        # store successor as (Node, direction to node, distance)
-        self.successors = []
+        self.successors = [] # Format: (Node, Direction, distance)
 
-    def get_index(self):
+    def get_index(self) -> int:
         return self.index
 
-    def get_successors(self):
+    def get_successors(self) -> list:
         return self.successors
 
-    def set_successor(self, successor, direction, length=1):
+    def set_successor(self, successor, direction: int, length: int = 1):
+        """Links this node to an adjacent node."""
         self.successors.append((successor, Direction(direction), int(length)))
-        # print(f"For Node {self.index}, a successor {self.successors[-1]} is set.")
-        return
 
-    def get_direction(self, node):
-
+    def get_direction(self, node) -> Direction:
+        """Returns the relative direction to an adjacent node."""
         for succ_node, direction, length in self.successors:
             if succ_node.index == node.index:
                 return direction
 
-        print(f"[Error] Node {node.index} is not adjacent to Node {self.index} ")
-        #raise ValueError(f"Invalid Successor: {node.index})
+        print(f"[Error] Node {node.index} is not adjacent to Node {self.index}")
         return 0
 
-        # TODO : if node is adjacent to the present node, return the direction of node from the present node
-        # For example, if the direction of node from the present node is EAST, then return Direction.EAST = 4
-        # However, if node is not adjacent to the present node, print error message and return 0
-
-
-    def is_successor(self, node):
+    def is_successor(self, node) -> bool:
+        """Checks if a specified node is directly accessible."""
         for succ in self.successors:
             if succ[0] == node:
                 return True
