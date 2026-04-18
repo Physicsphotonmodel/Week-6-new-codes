@@ -1,15 +1,14 @@
 """
 Module: maze.py
-Description: Handles graph representation, node management, and routing algorithms 
-             (BFS and Pacman strategy) for the vehicle's navigation.
+Description: Handles graph representation, node management, and dynamic routing algorithms.
+             Optimized for high-speed motor kinematics and event-driven replanning.
 """
 
-import csv
+import pandas
 import logging
 from enum import IntEnum
 from typing import List
 from collections import deque
-import pandas
 from node import Direction, Node
 
 log = logging.getLogger(__name__)
@@ -22,19 +21,17 @@ class Action(IntEnum):
     HALT = 5
 
 class Maze:
-    """Represents the maze environment and provides pathfinding algorithms."""
+    """Represents the maze environment and provides dynamic pathfinding algorithms."""
     
     def __init__(self, filepath: str):
         self.raw_data = pandas.read_csv(filepath)
         self.node_dict = dict() 
         
-        # Initialize Node objects
         for _, row in self.raw_data.iterrows():
             idx = int(row['index'])
             new_node = Node(idx)
             self.node_dict[idx] = new_node
 
-        # Establish successor relationships based on CSV data
         for _, row in self.raw_data.iterrows():
             idx = int(row['index'])
             current_node = self.node_dict[idx]
@@ -54,7 +51,6 @@ class Maze:
                     current_node.set_successor(self.node_dict[target_idx], d, dist)
 
     def get_start_point(self) -> Node:
-        """Retrieves the starting node (Node 1 by default)."""
         if len(self.node_dict) < 2:
             log.error("Error: Start point not found.")
             return None
@@ -64,33 +60,7 @@ class Maze:
         return self.node_dict
 
     def is_deadend(self, node: Node) -> bool:
-        """Checks if a node is a dead end (1 or fewer connections)."""
         return len(node.get_successors()) <= 1
-
-    def BFS(self, node: Node) -> List[Node]:
-        """Finds the shortest path from a node to the nearest unexplored deadend."""
-        queue = deque([node])
-        parent = {node.index: None}
-        visited = {node.index}
-
-        while queue:
-            current_node = queue.popleft()
-            
-            if len(current_node.successors) <= 1 and current_node.index != node.index:
-                path = []
-                temp = current_node
-                while temp is not None:
-                    path.append(temp)
-                    p_idx = parent[temp.index]
-                    temp = self.node_dict.get(p_idx) if p_idx is not None else None
-                return path[::-1]
-
-            for succ_node, _, _ in current_node.get_successors():
-                if succ_node.index not in visited:
-                    visited.add(succ_node.index)
-                    parent[succ_node.index] = current_node.index
-                    queue.append(succ_node)
-        return None
 
     def BFS_2(self, node_from: Node, node_to: Node) -> List[Node]:
         """Finds the shortest path between a specific start and target node."""
@@ -112,12 +82,9 @@ class Maze:
                 if succ_node.index not in parent:
                     parent[succ_node.index] = current_node.index
                     queue.append(succ_node)
-
-        log.error(f"Path not found from {node_from.index} to {node_to.index}")
         return None
 
     def getAction(self, car_dir: Direction, node_from: Node, node_to: Node):
-        """Determines the required physical action based on relative directions."""
         target_dir = node_from.get_direction(node_to)
         if target_dir == 0:
             return None, car_dir
@@ -143,57 +110,48 @@ class Maze:
             (Direction.EAST, Direction.NORTH):  Action.TURN_LEFT,
             (Direction.EAST, Direction.SOUTH):  Action.TURN_RIGHT,
         }
-
-        action = lookup.get((car_dir, target_dir))
-        return action, target_dir
+        return lookup.get((car_dir, target_dir)), target_dir
 
     def getActions(self, nodes: List[Node]) -> List[Action]:
-        """Translates a sequence of nodes into an action list."""
-        if not nodes or len(nodes) < 2: 
-            return []
-
+        if not nodes or len(nodes) < 2: return []
         actions = []
         current_car_dir = Direction.NORTH 
-
         for i in range(len(nodes) - 1):
             act, next_dir = self.getAction(current_car_dir, nodes[i], nodes[i+1])
             actions.append(act)
             current_car_dir = next_dir
-
         return actions
 
     def actions_to_str(self, actions: List[Action]) -> str:
-        """Converts action enums to the command string recognized by the vehicle."""
         cmd = "fbrlh"
         cmds = "".join([cmd[action - 1] for action in actions])
         log.info(f"Generated Command String: {cmds}")
         return cmds
 
     def get_all_node_scores(self, start_node: Node) -> dict:
-        """Calculates value score for all nodes based on distance from origin."""
+        """Calculates default values based on depth/distance."""
         scores = {}
         queue = deque([(start_node, 0)])
         visited = {start_node.index}
-        
         while queue:
             curr, dist = queue.popleft()
             scores[curr.index] = dist * 10 
-            
             for succ_node, _, _ in curr.get_successors():
                 if succ_node.index not in visited:
                     visited.add(succ_node.index)
                     queue.append((succ_node, dist + 1))
-                    
-        log.info(f"Node scores successfully mapped: {scores}")
         return scores
 
     def _estimate_time_cost(self, path: List[Node], current_car_dir: Direction) -> float:
-        """Estimates the physical execution time for a designated path."""
+        """
+        Estimates the physical execution time for a designated path.
+        UPDATED: High-speed motor parameters (Tp=255)
+        """
         if not path or len(path) < 2: return 0.0
         
-        TIME_TRAVEL_AND_STOP = 1.92  
-        TIME_TURN = 0.57             
-        TIME_U_TURN = 1.14           
+        TIME_TRAVEL_AND_STOP = 0.91  
+        TIME_U_TURN = 0.89           
+        TIME_TURN = 0.45             
 
         total_time = 0.0
         car_dir = current_car_dir
@@ -209,66 +167,46 @@ class Maze:
             
         return total_time
 
-    def strategy_pacman(self, start_node: Node, initial_car_dir: Direction, time_limit: float = 70.0) -> List[Node]:
-        """Greedy algorithm maximizing score accumulation within a rigid time limit."""
-        log.info("--- Initiating Time-Bound Strategy ---")
+    def get_next_target_path(self, current_node: Node, current_dir: Direction, remaining_time: float, unvisited: set, node_scores: dict) -> List[Node]:
+        """
+        Event-driven Dynamic Replanning:
+        Evaluates the map based on ACTUAL remaining time and returns the single best path.
+        """
+        log.info(f"--- Decision Making | Remaining Time: {remaining_time:.1f}s ---")
         
-        node_scores = self.get_all_node_scores(start_node)
-        unvisited = set(node_scores.keys())
-        unvisited.discard(start_node.index) 
+        TIME_CRITICAL = 20.0 
+        best_target_idx = None
+        best_path = []
+        best_utility = -1.0 
         
-        current_node = start_node
-        current_dir = initial_car_dir
-        time_spent = 0.0
-        total_expected_score = 0
-        master_path = [current_node]
+        if not unvisited:
+            return []
 
-        while unvisited and time_spent < time_limit:
-            best_target_idx = None
-            best_path = []
-            best_cp = -1.0
-            best_time_cost = 0.0
-            best_path_score = 0
-            best_final_dir = current_dir
+        for target_idx in list(unvisited):
+            target_node = self.node_dict.get(target_idx)
+            temp_path = self.BFS_2(current_node, target_node)
+            if not temp_path: continue
 
-            for target_idx in list(unvisited):
-                target_node = self.node_dict.get(target_idx)
-                temp_path = self.BFS_2(current_node, target_node)
-                if not temp_path: continue
-
-                est_time = self._estimate_time_cost(temp_path, current_dir)
-                if time_spent + est_time > time_limit:
-                    continue 
-
-                path_score = sum(node_scores[n.index] for n in temp_path[1:] if n.index in unvisited)
-                cp_value = path_score / est_time if est_time > 0 else 0
-
-                if cp_value > best_cp:
-                    best_cp = cp_value
-                    best_target_idx = target_idx
-                    best_path = temp_path
-                    best_time_cost = est_time
-                    best_path_score = path_score
-                    
-                    temp_dir = current_dir
-                    for i in range(len(temp_path)-1):
-                        _, temp_dir = self.getAction(temp_dir, temp_path[i], temp_path[i+1])
-                    best_final_dir = temp_dir
-
-            if best_target_idx is None:
-                log.info(f"Time remaining: {time_limit - time_spent:.1f}s. End of reachable targets.")
-                break
-
-            total_expected_score += best_path_score
-            time_spent += best_time_cost
-            current_node = self.node_dict[best_target_idx]
-            current_dir = best_final_dir
+            est_time = self._estimate_time_cost(temp_path, current_dir)
             
-            for n in best_path[1:]:
-                unvisited.discard(n.index)
-                
-            master_path.extend(best_path[1:])
-            log.info(f"Targeting Node {best_target_idx} | Expected Gain: {best_path_score} | Time Cost: {best_time_cost:.1f}s")
+            if est_time > remaining_time:
+                continue 
 
-        log.info(f"--- Planning Complete! Est. Score: {total_expected_score} | Est. Time: {time_spent:.1f}s ---")
-        return master_path
+            path_score = sum(node_scores[n.index] for n in temp_path[1:] if n.index in unvisited)
+            
+            if remaining_time > TIME_CRITICAL:
+                utility = path_score / est_time if est_time > 0 else 0
+            else:
+                utility = (1.0 / est_time) + (path_score * 0.01)
+
+            if utility > best_utility:
+                best_utility = utility
+                best_target_idx = target_idx
+                best_path = temp_path
+
+        if best_target_idx is None:
+            log.info("No reachable targets within remaining time. Halting procedure.")
+            return []
+
+        log.info(f"Next Target: Node {best_target_idx} | Utility: {best_utility:.2f} | Est. Cost: {self._estimate_time_cost(best_path, current_dir):.1f}s")
+        return best_path
