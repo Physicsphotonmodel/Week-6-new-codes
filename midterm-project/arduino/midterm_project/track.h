@@ -70,7 +70,7 @@ void Tracking_P(int l3, int l2, int m, int r2, int r3) {
     if (vL > 255) vL = 255; else if (vL < 0) vL = 0;
     if (vR > 255) vR = 255; else if (vR < 0) vR = 0;
 
-#ifdef DEBUG
+#if DEBUG
     Serial3.print("vL/vR: ");
     Serial3.print(vL);
     Serial3.print(" ");
@@ -85,20 +85,26 @@ void Tracking_P(int l3, int l2, int m, int r2, int r3) {
  */
 void Tracking_PD(int l3, int l2, int m, int r2, int r3) {
     double sum = l3 + l2 + m + r2 + r3;
-
-    if (sum == 0) {
-        MotorWriting(-100, -100);
-        return;
-    }
-
+    
     double w2 = 4;
     double w3 = 8;
     double error = 0;
     static double lastError = 0;
+    if (sum == 0) {
+        if (lastError > 0) {
+            MotorWriting(150, 0); 
+        } else if (lastError < 0) {
+            MotorWriting(0, 150); 
+        } else {
+            MotorWriting(100, 100); 
+        }
+        return;
+    }
+
     
     error = (l3 * (-w3) + l2 * (-w2) + m * (0) + r2 * (w2) + r3 * (w3)) / sum;
 
-    double Kp = 75; 
+    double Kp = 40; 
     double Kd = 25; 
 
     double dError = error - lastError;
@@ -110,6 +116,11 @@ void Tracking_PD(int l3, int l2, int m, int r2, int r3) {
     
     if (vL > 255) vL = 255; else if (vL < -255) vL = -255;
     if (vR > 255) vR = 255; else if (vR < -255) vR = -255;
-
+#if DEBUG
+    Serial3.print("vL/vR: ");
+    Serial3.print(vL);
+    Serial3.print(" ");
+    Serial3.println(vR);
+#endif
     MotorWriting(vL, vR);
 }

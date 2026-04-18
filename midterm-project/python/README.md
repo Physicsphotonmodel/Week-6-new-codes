@@ -32,7 +32,7 @@ python/
 Execute the entry script with the targeted operational mode. Mode `0` triggers standard automated competition routing.
 
 ```bash
-python main.py 0 --bt-port COM3 --team-name "Test" --server-url "http://140.112.175.18" --maze-file "data/small_maze.csv"
+python main.py 0  --team-name "WED7" --maze-file "data/small_maze.csv"
 ```
 
 Ensure all dependencies from `requirements.txt` are successfully installed within your virtual environment prior to execution.

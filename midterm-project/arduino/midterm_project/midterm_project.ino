@@ -6,7 +6,7 @@
 // Modify     [2026/04/05 Lumos]
 /***************************************************************************/
 
-#define DEBUG 0 // Debug flag
+#define DEBUG 1 // Debug flag
 
 #include <MFRC522.h>
 #include <SPI.h>
@@ -179,6 +179,6 @@ void Search() {
         _cmd = NOTHING; // Clear command queue for the next node
     } else {
         // Continue line tracking if not at a node
-        Tracking_P(l3, l2, m, r2, r3);
+        Tracking_PD(l3, l2, m, r2, r3);
     }
 }

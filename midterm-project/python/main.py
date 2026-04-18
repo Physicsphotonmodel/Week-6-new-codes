@@ -123,6 +123,11 @@ async def main(mode: int, bt_port: str, team_name: str, server_url: str, maze_fi
             
     elif mode == 1:
         log.info("Mode 1: Self-testing mode activated.")
+        # await interface.send('')
+        while True: 
+            response = interface.listen()
+            if response != '':
+                log.info(f"RAW RX: {repr(response)}")
     else:
         log.error("Invalid mode selected.")
         sys.exit(1)

@@ -24,6 +24,7 @@ conda create -n car python=3.12
 conda activate car
 cd python
 pip install -r requirements.txt
+pip install bleak
 ```
 
 ### Pip
