@@ -32,6 +32,8 @@ class Maze:
         for _, row in self.raw_data.iterrows():
             idx = int(row['index'])
             new_node = Node(idx)
+            new_node.x = None
+            new_node.y = None
             self.node_dict[idx] = new_node
 
         # Establish successor relationships based on CSV data
@@ -52,6 +54,32 @@ class Maze:
                     target_idx = int(target)
                     dist = row[dist_col] if pandas.notna(row[dist_col]) else 1
                     current_node.set_successor(self.node_dict[target_idx], d, dist)
+        
+        self.generate_coordinates()
+
+    def generate_coordinates(self, start_node: Node):
+        
+        # Initialize the origin of the coordinates
+        start_node.x, start_node.y = 0, 0
+        queue = deque([start_node])
+        visited = {start_node.index}
+
+        while queue:
+            curr = queue.popleft()
+            # loop to find coordinates of all points
+            for succ, direction, length in curr.get_successors():
+                if succ.index not in visited:
+                    if direction == Direction.NORTH:
+                        succ.x, succ.y = curr.x, curr.y + length
+                    elif direction == Direction.SOUTH:
+                        succ.x, succ.y = curr.x, curr.y - length
+                    elif direction == Direction.EAST:
+                        succ.x, succ.y = curr.x + length, curr.y
+                    elif direction == Direction.WEST:
+                        succ.x, succ.y = curr.x - length, curr.y
+                    
+                    visited.add(succ.index)
+                    queue.append(succ)
 
     def get_start_point(self) -> Node:
         """Retrieves the starting node (Node 1 by default)."""
@@ -169,22 +197,23 @@ class Maze:
         log.info(f"Generated Command String: {cmds}")
         return cmds
 
-    def get_all_node_scores(self, start_node: Node) -> dict:
-        """Calculates value score for all nodes based on distance from origin."""
+    def get_all_node_scores(self) -> dict:
+        """Calculates value score for all nodes based on manhattan distance from origin."""
         scores = {}
-        queue = deque([(start_node, 0)])
-        visited = {start_node.index}
+        # ensure that the origin is 1 and coordinates (0, 0)
+        # if origin is not 1, then revise the value of origin_x, origin_y here
         
-        while queue:
-            curr, dist = queue.popleft()
-            scores[curr.index] = dist * 10 
+        for idx, node in self.node_dict.items():
             
-            for succ_node, _, _ in curr.get_successors():
-                if succ_node.index not in visited:
-                    visited.add(succ_node.index)
-                    queue.append((succ_node, dist + 1))
-                    
-        log.info(f"Node scores successfully mapped: {scores}")
+            if node.x is None or node.y is None:
+                scores[idx] = 0
+                continue
+            
+            # calculation = |x1 - x2| + |y1 - y2|
+            manhattan_dist = abs(node.x)+abs(node.y)
+            scores[idx] = int(manhattan_dist * 10)
+            
+        log.info(f"Node scores (Manhattan) successfully mapped: {scores}")
         return scores
 
     def _estimate_time_cost(self, path: List[Node], current_car_dir: Direction) -> float:
@@ -213,7 +242,7 @@ class Maze:
         """Greedy algorithm maximizing score accumulation within a rigid time limit."""
         log.info("--- Initiating Time-Bound Strategy ---")
         
-        node_scores = self.get_all_node_scores(start_node)
+        node_scores = self.get_all_node_scores()
         unvisited = set(node_scores.keys())
         unvisited.discard(start_node.index) 
         

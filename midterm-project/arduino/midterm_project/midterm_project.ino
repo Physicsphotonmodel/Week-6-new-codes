@@ -145,7 +145,8 @@ void Search() {
     r3 = analogRead(R3) > 100;
 
     if (l3 && r3) { 
-        MotorWriting(0, 0); // Brake immediately at node
+        
+        MotorWriting(100, 100);
         Serial3.println("K"); // Report node arrival to Python
         
         // Wait in loop until the next movement command is received

@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 # Configuration Constants
 TEAM_NAME = "TEAM_7"
 SERVER_URL = "http://carcar.ntuee.org/scoreboard"
-MAZE_FILE = "data/small_maze.csv"
+MAZE_FILE = "data/appoint_maze.csv"
 TARGET_BT_NAME = "HM10_7" 
 
 def parse_args():
@@ -45,9 +45,12 @@ async def main(mode: int, bt_port: str, team_name: str, server_url: str, maze_fi
     maze = Maze(maze_file)
     scoreboard = ScoreboardServer(team_name, server_url)
 
-    start_node = maze.get_start_point() 
+    # prevent the case that start point is not at 1
+    my_start_index = 1
+    start_node = maze.node_dict[my_start_index] 
+    maze.generate_coordinates(start_node)
+
     initial_dir = Direction.NORTH 
-    
     # Calculate optimal path within time limit
     path_nodes = maze.strategy_pacman(start_node, initial_dir, time_limit=65.0) 
     
