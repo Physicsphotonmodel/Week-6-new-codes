@@ -57,6 +57,9 @@ class Maze:
 
     def generate_coordinates(self, start_node: Node):
         
+        for node in self.node_dict.values():
+            node.x, node.y = None, None
+        
         # Initialize the origin of the coordinates
         start_node.x, start_node.y = 0, 0
         queue = deque([start_node])
@@ -194,24 +197,26 @@ class Maze:
         cmds = "".join([cmd[action - 1] for action in actions])
         log.info(f"Generated Command String: {cmds}")
         return cmds
-
-    def get_all_node_scores(self) -> dict:
-        """Calculates value score for all nodes based on manhattan distance from origin."""
-        scores = {}
-        # ensure that the origin is 1 and coordinates (0, 0)
-        # if origin is not 1, then revise the value of origin_x, origin_y here
-        
+    
+    def find_treasure_nodes(self) -> List[int]:
+        """find treasure nodes from .csv file"""
+        treasure_nodes = []
         for idx, node in self.node_dict.items():
+            if len(node.get_successors()) == 1:
+                treasure_nodes.append(idx)
             
-            if node.x is None or node.y is None:
+        log.info(f"Detecting treasure nodes: {treasure_nodes}")
+        return treasure_nodes
+
+    def get_all_node_scores(self, treasure_nodes: List[int]) -> dict:
+        """only the points in treasure nodes have scores"""
+        scores = {}
+        for idx, node in self.node_dict.items():
+            if idx in treasure_nodes:
+                manhattan_dist = abs(node.x) + abs(node.y)
+                scores[idx] = int(manhattan_dist * 10)
+            else:
                 scores[idx] = 0
-                continue
-            
-            # calculation = |x1 - x2| + |y1 - y2|
-            manhattan_dist = abs(node.x)+abs(node.y)
-            scores[idx] = int(manhattan_dist * 10)
-            
-        log.info(f"Node scores (Manhattan) successfully mapped: {scores}")
         return scores
 
     def _estimate_time_cost(self, path: List[Node], current_car_dir: Direction) -> float:
@@ -236,13 +241,20 @@ class Maze:
             
         return total_time
 
-    def strategy_pacman(self, start_node: Node, initial_car_dir: Direction, time_limit: float = 70.0) -> List[Node]:
-        """Greedy algorithm maximizing score accumulation within a rigid time limit."""
-        log.info("--- Initiating Time-Bound Strategy ---")
+    def strategy_pacman(self, start_node: Node, initial_car_dir: Direction, treasure_nodes: List[int] = None, time_limit: float = 70.0) -> List[Node]:
+        """calculate cp of treasure node"""
         
-        node_scores = self.get_all_node_scores()
-        unvisited = set(node_scores.keys())
-        unvisited.discard(start_node.index) 
+        if treasure_nodes is None:
+            treasure_nodes = self.find_treasure_nodes()
+    
+        log.info(f"--- Initiating Time-Bound Strategy: {treasure_nodes}) ---")
+
+        # 1. get points
+        node_scores = self.get_all_node_scores(treasure_nodes)
+        
+        # 2. only care treasure nodes that haven't been to
+        unvisited_treasures = set(treasure_nodes)
+        unvisited_treasures.discard(start_node.index)
         
         current_node = start_node
         current_dir = initial_car_dir
@@ -250,7 +262,7 @@ class Maze:
         total_expected_score = 0
         master_path = [current_node]
 
-        while unvisited and time_spent < time_limit:
+        while unvisited_treasures and time_spent < time_limit:
             best_target_idx = None
             best_path = []
             best_cp = -1.0
@@ -258,7 +270,8 @@ class Maze:
             best_path_score = 0
             best_final_dir = current_dir
 
-            for target_idx in list(unvisited):
+            # only search for treasure nodes to calculate cp
+            for target_idx in list(unvisited_treasures):
                 target_node = self.node_dict.get(target_idx)
                 temp_path = self.BFS_2(current_node, target_node)
                 if not temp_path: continue
@@ -267,7 +280,8 @@ class Maze:
                 if time_spent + est_time > time_limit:
                     continue 
 
-                path_score = sum(node_scores[n.index] for n in temp_path[1:] if n.index in unvisited)
+                path_score = node_scores[target_idx]
+                
                 cp_value = path_score / est_time if est_time > 0 else 0
 
                 if cp_value > best_cp:
@@ -281,21 +295,21 @@ class Maze:
                     for i in range(len(temp_path)-1):
                         _, temp_dir = self.getAction(temp_dir, temp_path[i], temp_path[i+1])
                     best_final_dir = temp_dir
+                    
+                print(f"Node {target_idx}: Score={path_score}, Time={est_time:.2f}, CP={cp_value:.4f}")
 
             if best_target_idx is None:
-                log.info(f"Time remaining: {time_limit - time_spent:.1f}s. End of reachable targets.")
+                log.info("Time is insufficient to go to the next point. Stop plaanning")
                 break
 
             total_expected_score += best_path_score
             time_spent += best_time_cost
             current_node = self.node_dict[best_target_idx]
             current_dir = best_final_dir
+            unvisited_treasures.remove(best_target_idx)
             
-            for n in best_path[1:]:
-                unvisited.discard(n.index)
-                
             master_path.extend(best_path[1:])
-            log.info(f"Targeting Node {best_target_idx} | Expected Gain: {best_path_score} | Time Cost: {best_time_cost:.1f}s")
+            log.info(f"Targeting Node {best_target_idx} | Expected Gain: {node_scores[best_target_idx]} | Time Cost: {best_time_cost:.1f}s")
 
         log.info(f"--- Planning Complete! Est. Score: {total_expected_score} | Est. Time: {time_spent:.1f}s ---")
         return master_path
