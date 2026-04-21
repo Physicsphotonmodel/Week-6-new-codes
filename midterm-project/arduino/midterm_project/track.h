@@ -86,8 +86,8 @@ void Tracking_P(int l3, int l2, int m, int r2, int r3) {
 void Tracking_PD(int l3, int l2, int m, int r2, int r3) {
     double sum = l3 + l2 + m + r2 + r3;
     
-    double w2 = 4;
-    double w3 = 8;
+    double w2 = 3;
+    double w3 = 6;
     double error = 0;
     static double lastError = 0;
     if (sum == 0) {

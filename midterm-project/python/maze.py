@@ -176,13 +176,13 @@ class Maze:
         action = lookup.get((car_dir, target_dir))
         return action, target_dir
 
-    def getActions(self, nodes: List[Node]) -> List[Action]:
+    def getActions(self, nodes: List[Node], initial_dir: Direction = Direction.NORTH) -> List[Action]:
         """Translates a sequence of nodes into an action list."""
         if not nodes or len(nodes) < 2: 
             return []
 
         actions = []
-        current_car_dir = Direction.NORTH 
+        current_car_dir = initial_dir
 
         for i in range(len(nodes) - 1):
             act, next_dir = self.getAction(current_car_dir, nodes[i], nodes[i+1])
@@ -296,7 +296,7 @@ class Maze:
                         _, temp_dir = self.getAction(temp_dir, temp_path[i], temp_path[i+1])
                     best_final_dir = temp_dir
 
-                print(f"Node {target_idx}: Score={path_score}, Time={est_time:.2f}, CP={cp_value:.4f}")
+                # print(f"Node {target_idx}: Score={path_score}, Time={est_time:.2f}, CP={cp_value:.4f}")
 
             if best_target_idx is None:
                 log.info("Time is insufficient to go to the next point. Stop plaanning")
@@ -417,4 +417,111 @@ class Maze:
         log.info(f"--- 規劃完成！預計總分: {total_expected_score}, 總時: {time_spent:.2f}s ---")
         
         # 關鍵：回傳這三個值
+        return master_path, total_expected_score, time_spent
+    def strategy_pacman_3(self, start_node: Node, initial_car_dir: Direction, treasure_nodes: List[int] = None, time_limit: float = 70.0):
+        """
+        Look-ahead Depth 3: 一次評估未來三個點的最優組合。
+        回傳: (path_nodes, total_score, total_time)
+        """
+        if treasure_nodes is None:
+            treasure_nodes = self.find_treasure_nodes()
+        
+        node_scores = self.get_all_node_scores(treasure_nodes)
+        unvisited = set(treasure_nodes)
+        unvisited.discard(start_node.index)
+        
+        current_node = start_node
+        current_dir = initial_car_dir
+        time_spent = 0.0
+        total_expected_score = 0
+        master_path = [current_node]
+
+        log.info(f"--- 開始三層規劃策略 (Depth 3) ---")
+
+        while unvisited and time_spent < time_limit:
+            best_t1_idx = None
+            best_t1_path = []
+            best_t1_time = 0.0
+            best_t1_final_dir = current_dir
+            max_combined_cp = -1.0
+
+            targets = list(unvisited)
+            
+            # 第一層搜尋 (T1)
+            for t1_idx in targets:
+                node1 = self.node_dict[t1_idx]
+                path1 = self.BFS_2(current_node, node1)
+                if not path1: continue
+                time1 = self._estimate_time_cost(path1, current_dir)
+                if time_spent + time1 > time_limit: continue
+                
+                score1 = node_scores[t1_idx]
+                dir_after_1 = current_dir
+                for i in range(len(path1)-1):
+                    _, dir_after_1 = self.getAction(dir_after_1, path1[i], path1[i+1])
+
+                # 第二層搜尋 (T2)
+                remaining2 = [t for t in targets if t != t1_idx]
+                if not remaining2:
+                    cp = score1 / time1
+                    if cp > max_combined_cp:
+                        max_combined_cp, best_t1_idx, best_t1_path, best_t1_time, best_t1_final_dir = cp, t1_idx, path1, time1, dir_after_1
+                    continue
+
+                for t2_idx in remaining2:
+                    node2 = self.node_dict[t2_idx]
+                    path2 = self.BFS_2(node1, node2)
+                    if not path2: continue
+                    time2 = self._estimate_time_cost(path2, dir_after_1)
+                    score2 = node_scores[t2_idx]
+                    
+                    if time_spent + time1 + time2 > time_limit:
+                        cp = score1 / time1 # 只能走到 T1
+                    else:
+                        dir_after_2 = dir_after_1
+                        for i in range(len(path2)-1):
+                            _, dir_after_2 = self.getAction(dir_after_2, path2[i], path2[i+1])
+                        
+                        # 第三層搜尋 (T3)
+                        remaining3 = [t for t in remaining2 if t != t2_idx]
+                        if not remaining3:
+                            cp = (score1 + score2) / (time1 + time2)
+                        else:
+                            best_t3_cp = -1.0
+                            for t3_idx in remaining3:
+                                node3 = self.node_dict[t3_idx]
+                                path3 = self.BFS_2(node2, node3)
+                                if not path3: continue
+                                time3 = self._estimate_time_cost(path3, dir_after_2)
+                                score3 = node_scores[t3_idx]
+                                
+                                if time_spent + time1 + time2 + time3 > time_limit:
+                                    temp_cp = (score1 + score2) / (time1 + time2)
+                                else:
+                                    temp_cp = (score1 + score2 + score3) / (time1 + time2 + time3)
+                                
+                                if temp_cp > best_t3_cp:
+                                    best_t3_cp = temp_cp
+                            cp = best_t3_cp
+
+                    if cp > max_combined_cp:
+                        max_combined_cp = cp
+                        best_t1_idx = t1_idx
+                        best_t1_path = path1
+                        best_t1_time = time1
+                        best_t1_final_dir = dir_after_1
+
+            if best_t1_idx is None:
+                break
+
+            # 確定移動
+            total_expected_score += node_scores[best_t1_idx]
+            time_spent += best_t1_time
+            current_node = self.node_dict[best_t1_idx]
+            current_dir = best_t1_final_dir
+            unvisited.remove(best_t1_idx)
+            master_path.extend(best_t1_path[1:])
+            
+            log.info(f"Depth 3 決策: 前往 {best_t1_idx} (預計組合 CP: {max_combined_cp:.2f})")
+
         return master_path, total_expected_score, time_spent

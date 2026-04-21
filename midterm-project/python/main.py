@@ -22,7 +22,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # Configuration Constants
-TEAM_NAME = "TEAM_7"
+TEAM_NAME = "WED7"
 SERVER_URL = "http://carcar.ntuee.org/scoreboard"
 MAZE_FILE = "data/appoint_maze.csv"
 TARGET_BT_NAME = "HM10_7" 
@@ -32,12 +32,13 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", help="0: treasure-hunting, 1: self-testing", type=int)
     parser.add_argument("--maze-file", default=MAZE_FILE, help="Maze file", type=str)
+    parser.add_argument("--dir", default=1, help="direction", type=int)
     parser.add_argument("--bt-port", default="COM3", help="Bluetooth port (Ignored in Bleak)", type=str)
     parser.add_argument("--team-name", default=TEAM_NAME, help="Your team name", type=str)
     parser.add_argument("--server-url", default=SERVER_URL, help="Server URL", type=str)
     return parser.parse_args()
 
-async def main(mode: int, bt_port: str, team_name: str, server_url: str, maze_file: str):
+async def main(mode: int, dir: int,bt_port: str, team_name: str, server_url: str, maze_file: str):
     """
     Main asynchronous loop for vehicle control.
     Initializes the maze, calculates the path, connects via BLE, and handles the state machine.
@@ -50,15 +51,20 @@ async def main(mode: int, bt_port: str, team_name: str, server_url: str, maze_fi
     start_node = maze.node_dict[my_start_index] 
     maze.generate_coordinates(start_node)
 
-    initial_dir = Direction.NORTH 
+    initial_dir = Direction(dir)
     # Calculate optimal path within time limit
-    path_nodes = maze.strategy_pacman(start_node, initial_dir, time_limit=65.0) 
+    # path_nodes = maze.strategy_pacman_1(start_node, initial_dir, time_limit=75.0)
+    path_nodes, final_score, total_time = maze.strategy_pacman_3(
+        start_node, 
+        initial_dir, 
+        time_limit=70.0
+    ) 
     
     if not path_nodes or len(path_nodes) < 2:
         log.error("Path generation failed.")
         sys.exit(1)
 
-    actions = maze.getActions(path_nodes)
+    actions = maze.getActions(path_nodes, initial_dir)
     action_list = list(maze.actions_to_str(actions))
 
     # ==========================================

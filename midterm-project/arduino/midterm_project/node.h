@@ -30,7 +30,7 @@ void TurnRight() {
     } while(l3 * l2 * m * r2 * r3 == 1);
     
     MotorWriting(MAX_POWER, -MAX_POWER);
-    delay(200);
+    delay(125);
     
     do {
         MotorWriting(MAX_POWER-50, 0);
@@ -39,7 +39,7 @@ void TurnRight() {
         m = analogRead(M) > 100;
         r2 = analogRead(R2) > 100;
         r3 = analogRead(R3) > 100;
-    } while(!((l3==0) && (l2==0) && (m==1) && (r2==0) && (r3==0)));
+    } while(!((l3==0) && (l2==0) && (m==0) && (r2==0) && (r3==1)));
 }
 
 /*
@@ -57,7 +57,7 @@ void TurnLeft() {
     } while(l3 * l2 * m * r2 * r3 == 1);
     
     MotorWriting(-MAX_POWER, MAX_POWER);
-    delay(200);
+    delay(125);
     
     do {
         MotorWriting(0, MAX_POWER-50);
@@ -66,7 +66,7 @@ void TurnLeft() {
         m = analogRead(M) > 100;
         r2 = analogRead(R2) > 100;
         r3 = analogRead(R3) > 100;
-    } while(!((l3==0) && (l2==0) && (m==1) && (r2==0) && (r3==0)));
+    } while(!((l3==1) && (l2==0) && (m==0) && (r2==0) && (r3==0)));
 }
 
 /*
@@ -81,7 +81,7 @@ void TurnBack() {
     int r2 = analogRead(R2) > 100;
     int r3 = analogRead(R3) > 100;
     
-    while(!((l3==0) && (l2==0) && (m==1) && (r2==0) && (r3==0))) {
+    do {
         MotorWriting(0, MAX_POWER-50);
         l3 = analogRead(L3) > 100;
         l2 = analogRead(L2) > 100;
@@ -98,7 +98,7 @@ void TurnBack() {
         m = analogRead(M) > 100;
         r2 = analogRead(R2) > 100;
         r3 = analogRead(R3) > 100;
-    } while(!((l3==0) && (l2==0) && (m==1) && (r2==0) && (r3==0)));
+    } while(!((l3==1) && (l2==0) && (m==0) && (r2==0) && (r3==0)));
 
 }
 /*
