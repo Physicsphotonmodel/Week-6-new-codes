@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 async def test_navigation():
     # 1. 載入地圖
-    maze_file = "data/test_maze.csv" 
+    maze_file = "data/appoint_maze.csv" 
     maze = Maze(maze_file)
 
     # 2. 設定起點 (Node 1) 並將其設為座標原點 (0,0)
@@ -28,11 +28,20 @@ async def test_navigation():
     # 4. 測試 Pacman 策略 (核心邏輯)
     # 這會內部呼叫 get_all_node_scores()，以 (0,0) 為基準計分
     initial_dir = Direction.NORTH 
-    path_nodes = maze.strategy_pacman(start_node, initial_dir, time_limit=65.0)
-    
+    # path_nodes = maze.strategy_pacman_2(start_node, initial_dir, time_limit=65.0)
+    path_nodes, final_score, total_time = maze.strategy_pacman_2(
+        start_node, 
+        initial_dir, 
+        time_limit=70.0
+    )
+
     if not path_nodes or len(path_nodes) < 2:
         log.error("路徑規劃失敗")
         return
+
+    # log.info(f"路徑序列: {[n.index for n in path_nodes]}")
+    # log.info(f"預期總分: {final_score}")
+    # log.info(f"預期總耗時: {total_time:.2f}s")
 
     # 5. 轉換為車子移動指令
     actions = maze.getActions(path_nodes)
